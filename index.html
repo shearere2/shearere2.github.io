@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>RoadShear | NPS Road Trips (Wizard MVP)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="page">
+    <header>
+      <div class="brand">
+        <div class="brand-logo"><span>RS</span></div>
+        <div class="brand-copy">
+          <div class="brand-name">RoadShear</div>
+          <div class="brand-tagline">National Park Edition · Wizard MVP</div>
+        </div>
+      </div>
+
+      <div class="header-pill">
+        <span class="header-pill-dot"></span>
+        <span>NPS layers + ORS (start geocode) + GIS logic</span>
+      </div>
+    </header>
+
+    <main>
+      <!-- LEFT PANEL -->
+      <section class="card">
+        <div class="card-inner">
+
+          <!-- Wizard Step Indicator -->
+          <div class="wizard-top">
+            <div class="wizard-steps">
+              <div class="wizard-step active" id="step-indicator-1">
+                <div class="wizard-dot">1</div>
+                <div>
+                  <div class="wizard-title">Start + Destination</div>
+                  <div class="wizard-sub">Trip budget → park search</div>
+                </div>
+              </div>
+
+              <div class="wizard-step" id="step-indicator-2">
+                <div class="wizard-dot">2</div>
+                <div>
+                  <div class="wizard-title">Stops</div>
+                  <div class="wizard-sub">Within interval of last stop</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 1 -->
+          <div id="step-1">
+            <h1 class="hero-heading">
+              Build an NPS road trip around your <span class="hero-highlight">driving budget</span>.
+            </h1>
+            <p class="hero-sub">
+              Set a START, choose trip settings, then RoadShear searches for NPS parks whose centroid distance fits your budget.
+              Click a park marker to preview it, then hit <b>Set Destination</b>.
+            </p>
+
+            <form id="trip-form" novalidate>
+              <div class="field-group">
+                <div class="field-label-row">
+                  <label for="origin">Starting point</label>
+                  <span class="field-hint">Search (ORS) or click map</span>
+                </div>
+                <div class="input-with-button">
+                  <input id="origin" type="text" placeholder="e.g., 600 Forbes Ave, Pittsburgh, PA" />
+                  <button type="button" class="mini-button" id="geocode-start">Set START</button>
+                </div>
+                <div id="origin-error" class="error-text" style="display:none;"></div>
+              </div>
+
+              <div class="field-group">
+                <div class="field-label-row">
+                  <label>Trip type</label>
+                  <span class="field-hint">Default: round trip</span>
+                </div>
+                <div class="toggle-row">
+                  <button type="button" class="toggle active" id="toggle-roundtrip">Round trip</button>
+                  <button type="button" class="toggle" id="toggle-oneway">One-way</button>
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="field-group">
+                  <div class="field-label-row">
+                    <label for="trip-days">Trip length</label>
+                    <span class="field-hint">Days</span>
+                  </div>
+                  <input id="trip-days" type="number" min="1" max="30" value="4" />
+                </div>
+
+                <div class="field-group">
+                  <div class="field-label-row">
+                    <label for="hours-per-day">Driving/day</label>
+                    <span class="field-hint">Hours</span>
+                  </div>
+                  <input id="hours-per-day" type="number" min="1" max="12" step="0.5" value="5" />
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="field-group">
+                  <div class="field-label-row">
+                    <label for="stop-frequency">Hours between stops</label>
+                    <span class="field-hint">Used for stop interval</span>
+                  </div>
+                  <input id="stop-frequency" type="number" min="0.5" max="8" step="0.5" value="2" />
+                </div>
+
+                <div class="field-group" id="days-at-destination-group">
+                  <div class="field-label-row">
+                    <label for="days-at-destination">Days at destination</label>
+                    <span class="field-hint">Round trip only</span>
+                  </div>
+                  <input id="days-at-destination" type="number" min="0" max="20" value="1" />
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field-label-row">
+                  <label>Stop vibe</label>
+                  <span class="field-hint">Filters NPS POIs</span>
+                </div>
+
+                <div class="pill-radio-group" id="vibe-group">
+                  <div class="pill-radio active" data-value="scenic"><span class="dot"></span><span>Scenic overlooks</span></div>
+                  <div class="pill-radio" data-value="parks"><span class="dot"></span><span>Visitor centers / highlights</span></div>
+                  <div class="pill-radio" data-value="hiking"><span class="dot"></span><span>Trailheads</span></div>
+                  <div class="pill-radio" data-value="towns"><span class="dot"></span><span>Gateway towns</span></div>
+                  <div class="pill-radio" data-value="mixed"><span class="dot"></span><span>Mixed</span></div>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field-label-row">
+                  <label>Optional free amenities (OSM)</label>
+                  <span class="field-hint">Fuel / Food / Hotels (Overpass)</span>
+                </div>
+                <div class="toggle-row">
+                  <button type="button" class="toggle" id="toggle-osm">OSM amenities: OFF</button>
+                </div>
+                <div class="microcopy">
+                  If blocked by CORS or rate limits, RoadShear continues with NPS POIs + Places only.
+                </div>
+              </div>
+
+              <div class="button-row">
+                <button type="button" class="button-secondary" id="find-destinations">
+                  🏞️ Find destination parks
+                </button>
+                <button type="button" id="set-destination" disabled>
+                  ✅ Set Destination
+                </button>
+              </div>
+
+              <div class="microcopy">
+                Step 1 workflow: set START → “Find destination parks” → click a park marker to preview → “Set Destination”
+              </div>
+            </form>
+
+            <!-- Destination preview card -->
+            <div class="preview-card" id="destination-preview" style="display:none;">
+              <div class="preview-title" id="dest-title">Selected destination</div>
+              <div class="preview-meta" id="dest-meta"></div>
+              <div class="preview-actions">
+                <button type="button" class="button-secondary" id="clear-destination">Clear</button>
+                <button type="button" id="confirm-destination">Set Destination</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 2 -->
+          <div id="step-2" style="display:none;">
+            <h2 class="hero-heading" style="font-size:22px;">
+              Select your stops
+            </h2>
+            <p class="hero-sub" id="step2-sub">
+              Candidates are shown within your stop interval of the last stop (starting from START).
+              Click a marker to preview, then add it.
+            </p>
+
+            <div class="summary-box" id="step2-summary"></div>
+
+            <div class="button-row">
+              <button type="button" class="button-secondary" id="modify-origin-dest">
+                ⬅ Modify origin/destination
+              </button>
+              <button type="button" class="button-secondary" id="auto-pick-stops">
+                ✨ Auto-pick 15–20 stops (MVP)
+              </button>
+            </div>
+
+            <div class="preview-card" id="stop-preview" style="display:none;">
+              <div class="preview-title" id="stop-title">Stop preview</div>
+              <div class="preview-meta" id="stop-meta"></div>
+              <div class="preview-actions">
+                <button type="button" class="button-secondary" id="close-stop-preview">Close</button>
+                <button type="button" id="add-stop">Add Stop</button>
+              </div>
+            </div>
+
+            <div class="button-row">
+              <button type="button" class="button-secondary" id="open-google" disabled>
+                🧭 Open in Google Maps
+              </button>
+              <button type="button" class="button-secondary" id="reset">
+                ♻ Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT PANEL -->
+      <section class="card">
+        <div class="card-inner">
+          <div class="right-card-header">
+            <div>
+              <div class="right-title">Map + Itinerary</div>
+              <div class="right-subtitle" id="summary-subtitle">
+                Step 1: Set START, then search/select a destination park.
+              </div>
+              <div class="summary-pill-row" id="summary-pills" style="display:none;"></div>
+            </div>
+            <div class="chip">
+              <span class="chip-dot"></span>
+              <span>Live layers</span>
+            </div>
+          </div>
+
+          <div id="map-wrapper">
+            <div id="map"></div>
+            <div id="map-status" class="map-status">
+              Click on the map to set START, or search on the left.
+            </div>
+          </div>
+
+          <div id="itinerary-container" class="itinerary-list">
+            <div class="itinerary-empty">
+              Itinerary will populate after you set destination and start adding stops.
+            </div>
+          </div>
+
+          <div class="footer-note">
+            <span><span class="highlight">Tip:</span> Google Maps works best with ≤ 10–12 waypoints.</span>
+            <span>v0.5 · NPS Wizard MVP</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
